@@ -1,0 +1,10 @@
+# Agent files
+AGENTS.md
+
+# User data
+data/*.json
+data/*.lock
+data/*.log
+
+# .htaccess in data dir
+data/.htaccess
