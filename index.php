@@ -53,6 +53,19 @@ $displayName = htmlspecialchars($user['display_name']);
         .sidebar-resizer { width: 4px; cursor: col-resize; background: transparent; transition: background 0.15s; }
         .sidebar-resizer:hover, .sidebar-resizer.active { background: #8b5cf6; }
         .quick-add:focus { outline: none; }
+        @media (max-width: 768px) {
+            .desktop-sidebar { display: none !important; }
+            .mobile-bottom-bar { display: flex !important; }
+            .desktop-nav { display: none !important; }
+            .mobile-nav { display: flex !important; }
+            .sidebar-resizer { display: none !important; }
+            .mobile-compact { display: none !important; }
+            body { padding-bottom: 56px; }
+        }
+        @media (min-width: 769px) {
+            .mobile-bottom-bar { display: none !important; }
+            .mobile-nav { display: none !important; }
+        }
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; color: black !important; }
@@ -60,18 +73,6 @@ $displayName = htmlspecialchars($user['display_name']);
             .border-zinc-800, .border-zinc-700, .border-zinc-900 { border-color: #ccc !important; }
             .text-zinc-100, .text-zinc-200, .text-zinc-300, .text-zinc-400, .text-white { color: black !important; }
             .cal-event { break-inside: avoid; }
-        }
-        @media (max-width: 768px) {
-            .desktop-sidebar { display: none; }
-            .mobile-bottom-bar { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-            .mobile-bottom-bar { display: none !important; }
-        }
-        .mobile-nav { display: none; }
-        @media (max-width: 768px) {
-            .mobile-nav { display: flex; }
-            .desktop-nav { display: none; }
         }
     </style>
 </head>
@@ -84,28 +85,27 @@ $displayName = htmlspecialchars($user['display_name']);
     <?php endif; ?>
 
     <div class="flex flex-col h-screen">
-        <div class="bg-zinc-900 border-b border-zinc-800 px-4 md:px-6 py-3 flex justify-between items-center shrink-0 no-print">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 bg-violet-500 rounded-2xl flex items-center justify-center text-xl">📅</div>
-                <h1 class="text-xl md:text-2xl font-semibold">Planner</h1>
-                <span class="text-sm text-zinc-400 ml-2 hidden md:inline"><?= $displayName ?></span>
+        <div class="bg-zinc-900 border-b border-zinc-800 px-3 md:px-6 py-2 md:py-3 flex items-center shrink-0 no-print gap-2">
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="w-8 h-8 md:w-9 md:h-9 bg-violet-500 rounded-2xl flex items-center justify-center text-lg md:text-xl">📅</div>
+                <h1 class="text-lg md:text-2xl font-semibold">Planner</h1>
             </div>
-            <div class="flex items-center gap-2 md:gap-3">
+            <div class="flex-1 min-w-0 text-center">
+                <h2 id="navTitle" class="text-sm md:text-lg font-medium truncate"></h2>
+            </div>
+            <div class="flex items-center gap-1">
                 <div class="flex items-center bg-zinc-800 rounded-full overflow-hidden desktop-nav">
-                    <button id="btnWeek" onclick="setView('week')" class="px-4 py-2 text-sm font-medium transition">Week</button>
-                    <button id="btnMonth" onclick="setView('month')" class="px-4 py-2 text-sm font-medium transition">Month</button>
+                    <button id="btnWeek" onclick="setView('week')" class="px-3 py-1.5 text-sm font-medium transition">Week</button>
+                    <button id="btnMonth" onclick="setView('month')" class="px-3 py-1.5 text-sm font-medium transition">Month</button>
                 </div>
-                <button onclick="goToday()" class="text-sm bg-zinc-800 hover:bg-zinc-700 px-3 md:px-4 py-2 rounded-full transition">Today</button>
-                <div class="flex items-center gap-1">
-                    <button onclick="navPrev()" class="p-2 hover:bg-zinc-800 rounded-lg transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    </button>
-                    <button onclick="navNext()" class="p-2 hover:bg-zinc-800 rounded-lg transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                </div>
-                <h2 id="navTitle" class="text-base md:text-lg font-medium min-w-[120px] md:min-w-[200px] text-center"></h2>
-                <button onclick="openKeyboardHelp()" class="p-2 hover:bg-zinc-800 rounded-lg transition text-zinc-500 hover:text-zinc-300 hidden md:inline-flex" title="Keyboard shortcuts">
+                <button onclick="goToday()" class="text-sm bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-full transition">Today</button>
+                <button onclick="navPrev()" class="p-1.5 hover:bg-zinc-800 rounded-lg transition">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <button onclick="navNext()" class="p-1.5 hover:bg-zinc-800 rounded-lg transition">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                <button onclick="openKeyboardHelp()" class="p-1.5 hover:bg-zinc-800 rounded-lg transition text-zinc-500 hover:text-zinc-300 hidden md:inline-flex" title="Keyboard shortcuts">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-2a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
                 </button>
                 <?php if ($demoMode): ?>
@@ -119,7 +119,7 @@ $displayName = htmlspecialchars($user['display_name']);
         <div class="flex flex-1 overflow-hidden">
             <div id="calendarArea" class="flex-1 overflow-hidden flex flex-col">
                 <div id="weekView" class="flex-1 overflow-hidden flex flex-col">
-                    <div class="grid grid-cols-8 border-b border-zinc-800 bg-zinc-900 shrink-0">
+                    <div class="grid grid-cols-8 border-b border-zinc-800 bg-zinc-900 shrink-0 week-header-row">
                         <div class="py-2 px-1 text-xs text-zinc-500 text-center" id="weekNumLabel"></div>
                         <div id="dayHead0" class="py-2 px-1 text-center text-sm"></div>
                         <div id="dayHead1" class="py-2 px-1 text-center text-sm"></div>
@@ -167,14 +167,18 @@ $displayName = htmlspecialchars($user['display_name']);
             </div>
         </div>
 
-        <div class="mobile-bottom-bar bg-zinc-900 border-t border-zinc-800 p-2 justify-around items-center no-print" style="display:none">
+        <div class="mobile-bottom-bar bg-zinc-900 border-t border-zinc-800 py-2 px-4 justify-around items-center no-print" style="display:none">
             <button onclick="openAddModal()" class="flex flex-col items-center text-xs text-zinc-400 hover:text-violet-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add
             </button>
             <button onclick="setView('week')" id="mobileWeek" class="flex flex-col items-center text-xs text-violet-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                Week
+                <span id="mobileWeekLabel">Day</span>
+            </button>
+            <button onclick="goToday()" class="flex flex-col items-center text-xs text-zinc-400 hover:text-violet-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 6v6l4 2"/></svg>
+                Today
             </button>
             <button onclick="setView('month')" id="mobileMonth" class="flex flex-col items-center text-xs text-zinc-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -182,21 +186,21 @@ $displayName = htmlspecialchars($user['display_name']);
             </button>
             <button onclick="toggleMobileSidebar()" class="flex flex-col items-center text-xs text-zinc-400 hover:text-violet-400">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16"/></svg>
-                List
+                Events
             </button>
         </div>
     </div>
 
     <div id="eventModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 modal-backdrop">
-        <div class="bg-zinc-900 rounded-3xl w-full max-w-lg p-8 modal-content max-h-[90vh] overflow-y-auto scrollbar-thin">
-            <h3 id="modalTitle" class="text-2xl font-bold mb-6">Add Event</h3>
+        <div class="bg-zinc-900 rounded-3xl w-full max-w-lg p-6 md:p-8 modal-content max-h-[90vh] overflow-y-auto scrollbar-thin">
+            <h3 id="modalTitle" class="text-xl md:text-2xl font-bold mb-4 md:mb-6">Add Event</h3>
             <input type="hidden" id="eventId">
             <div class="space-y-5">
                 <div>
                     <label class="block text-sm text-zinc-400 mb-1">Title</label>
                     <input id="eventTitle" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-violet-500 transition" placeholder="Lunch with Alex tomorrow 12pm">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm text-zinc-400 mb-1">Start Date</label>
                         <input id="eventDate" type="date" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-violet-500 transition">
@@ -218,14 +222,24 @@ $displayName = htmlspecialchars($user['display_name']);
                     <label class="text-sm text-zinc-400">All day</label>
                     <input id="eventAllDay" type="checkbox" class="w-4 h-4 accent-violet-500" onchange="toggleAllDay()">
                 </div>
-                <div id="timeFields" class="grid grid-cols-2 gap-4">
+                <div id="timeFields" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm text-zinc-400 mb-1">Start Time</label>
-                        <input id="eventStart" type="time" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-violet-500 transition">
+                        <div class="flex gap-1">
+                            <select id="eventStartHour" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-3 py-3 focus:outline-none focus:border-violet-500 transition"></select>
+                            <span class="self-center text-zinc-500">:</span>
+                            <select id="eventStartMin" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-3 py-3 focus:outline-none focus:border-violet-500 transition"></select>
+                        </div>
+                        <input type="hidden" id="eventStart">
                     </div>
                     <div>
                         <label class="block text-sm text-zinc-400 mb-1">End Time</label>
-                        <input id="eventEnd" type="time" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-violet-500 transition">
+                        <div class="flex gap-1">
+                            <select id="eventEndHour" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-3 py-3 focus:outline-none focus:border-violet-500 transition"></select>
+                            <span class="self-center text-zinc-500">:</span>
+                            <select id="eventEndMin" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-3 py-3 focus:outline-none focus:border-violet-500 transition"></select>
+                        </div>
+                        <input type="hidden" id="eventEnd">
                     </div>
                 </div>
                 <div>
@@ -239,7 +253,7 @@ $displayName = htmlspecialchars($user['display_name']);
                         <option value="yearly">Yearly</option>
                     </select>
                 </div>
-                <div id="recurrenceIntervalFields" class="hidden grid grid-cols-2 gap-4">
+                <div id="recurrenceIntervalFields" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm text-zinc-400 mb-1">Every N</label>
                         <input id="eventRecurrenceInterval" type="number" min="1" max="52" value="1" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-violet-500 transition">
@@ -368,7 +382,7 @@ $displayName = htmlspecialchars($user['display_name']);
     <div id="toastContainer" class="fixed bottom-20 md:bottom-6 right-6 z-50 space-y-2 no-print"></div>
 
     <div id="mobileSidebarOverlay" class="hidden fixed inset-0 bg-black/60 z-40" onclick="toggleMobileSidebar()"></div>
-    <div id="mobileSidebar" class="fixed right-0 top-0 bottom-0 w-80 bg-zinc-900 z-50 transform translate-x-full transition-transform duration-200 overflow-y-auto scrollbar-thin no-print">
+    <div id="mobileSidebar" class="fixed right-0 top-0 bottom-0 w-80 max-w-full bg-zinc-900 z-50 transform translate-x-full transition-transform duration-200 overflow-y-auto scrollbar-thin no-print">
         <div class="p-4 border-b border-zinc-800 flex justify-between items-center">
             <h3 class="font-semibold text-lg">Events</h3>
             <button onclick="toggleMobileSidebar()" class="p-2 hover:bg-zinc-800 rounded-lg">

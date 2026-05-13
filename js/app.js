@@ -1,5 +1,6 @@
 (function() {
     const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const DAY_NAMES_SHORT = ['M','T','W','T','F','S','S'];
     const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const TYPE_COLORS = { task: 'violet', meeting: 'blue', deadline: 'red' };
     const TYPE_ICONS = { task: '☑', meeting: '👥', deadline: '⏰' };
@@ -16,8 +17,11 @@
     const START_HOUR = 6;
     const END_HOUR = 23;
     const SLOT_HEIGHT = 52;
+    const MOBILE_SLOT_HEIGHT = 40;
     const RECURRENCE_LABELS = { none: 'Does not repeat', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
     const DAY_ABBR = { SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat' };
+
+    function isMobile() { return window.innerWidth <= 768; }
 
     function recurrenceLabel(evt) {
         if (!evt.recurrence || evt.recurrence === 'none') return '';
@@ -64,7 +68,64 @@
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     }
 
-function formatTime(timeStr) {
+function initTimeSelects() {
+        var hourSelects = [document.getElementById('eventStartHour'), document.getElementById('eventEndHour')];
+        var minSelects = [document.getElementById('eventStartMin'), document.getElementById('eventEndMin')];
+        hourSelects.forEach(function(sel) {
+            sel.innerHTML = '<option value="">--</option>';
+            for (var h = 0; h < 24; h++) {
+                var opt = document.createElement('option');
+                opt.value = String(h).padStart(2, '0');
+                opt.textContent = String(h).padStart(2, '0');
+                sel.appendChild(opt);
+            }
+        });
+        minSelects.forEach(function(sel) {
+            sel.innerHTML = '<option value="">--</option>';
+            [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].forEach(function(m) {
+                var opt = document.createElement('option');
+                opt.value = String(m).padStart(2, '0');
+                opt.textContent = String(m).padStart(2, '0');
+                sel.appendChild(opt);
+            });
+        });
+        document.getElementById('eventStartHour').addEventListener('change', syncTimeToHidden);
+        document.getElementById('eventStartMin').addEventListener('change', syncTimeToHidden);
+        document.getElementById('eventEndHour').addEventListener('change', syncTimeToHidden);
+        document.getElementById('eventEndMin').addEventListener('change', syncTimeToHidden);
+    }
+
+    function syncTimeToHidden() {
+        var sh = document.getElementById('eventStartHour').value;
+        var sm = document.getElementById('eventStartMin').value;
+        var eh = document.getElementById('eventEndHour').value;
+        var em = document.getElementById('eventEndMin').value;
+        document.getElementById('eventStart').value = (sh && sm) ? sh + ':' + sm : '';
+        document.getElementById('eventEnd').value = (eh && em) ? eh + ':' + em : '';
+    }
+
+    function syncHiddenToSelects() {
+        var startVal = document.getElementById('eventStart').value;
+        var endVal = document.getElementById('eventEnd').value;
+        if (startVal) {
+            var sp = startVal.split(':');
+            document.getElementById('eventStartHour').value = sp[0];
+            document.getElementById('eventStartMin').value = sp[1];
+        } else {
+            document.getElementById('eventStartHour').value = '';
+            document.getElementById('eventStartMin').value = '';
+        }
+        if (endVal) {
+            var ep = endVal.split(':');
+            document.getElementById('eventEndHour').value = ep[0];
+            document.getElementById('eventEndMin').value = ep[1];
+        } else {
+            document.getElementById('eventEndHour').value = '';
+            document.getElementById('eventEndMin').value = '';
+        }
+    }
+
+    function formatTime(timeStr) {
         if (!timeStr) return '';
         var parts = timeStr.split(':').map(Number);
         return parts[0].toString().padStart(2, '0') + ':' + parts[1].toString().padStart(2, '0');
@@ -322,18 +383,30 @@ function formatTime(timeStr) {
             mw.className = 'flex flex-col items-center text-xs ' + (view === 'week' ? 'text-violet-400' : 'text-zinc-400');
             mm.className = 'flex flex-col items-center text-xs ' + (view === 'month' ? 'text-violet-400' : 'text-zinc-400');
         }
+        var mobileWeekLabel = document.getElementById('mobileWeekLabel');
+        if (mobileWeekLabel) mobileWeekLabel.textContent = isMobile() ? 'Day' : 'Week';
         renderAll();
     }
 
     function navPrev() {
-        if (currentView === 'week') { currentDate = new Date(currentDate.getTime() - 7*86400000); }
-        else { currentDate.setMonth(currentDate.getMonth() - 1); }
+        if (isMobile() && currentView === 'week') {
+            currentDate = new Date(currentDate.getTime() - 86400000);
+        } else if (currentView === 'week') {
+            currentDate = new Date(currentDate.getTime() - 7*86400000);
+        } else {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+        }
         renderAll();
     }
 
     function navNext() {
-        if (currentView === 'week') { currentDate = new Date(currentDate.getTime() + 7*86400000); }
-        else { currentDate.setMonth(currentDate.getMonth() + 1); }
+        if (isMobile() && currentView === 'week') {
+            currentDate = new Date(currentDate.getTime() + 86400000);
+        } else if (currentView === 'week') {
+            currentDate = new Date(currentDate.getTime() + 7*86400000);
+        } else {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
         renderAll();
     }
 
@@ -342,13 +415,18 @@ function formatTime(timeStr) {
     function renderNavTitle() {
         var el = document.getElementById('navTitle');
         if (currentView === 'week') {
-            var mon = getMonday(currentDate);
-            var sun = new Date(mon.getTime() + 6*86400000);
-            var wk = getISOWeek(mon);
-            if (mon.getMonth() === sun.getMonth()) {
-                el.textContent = MONTH_NAMES[mon.getMonth()] + ' ' + mon.getDate() + ' \u2013 ' + sun.getDate() + ', ' + mon.getFullYear() + ' (W' + wk + ')';
+            if (isMobile()) {
+                var d = currentDate;
+                el.textContent = DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1] + ' ' + MONTH_NAMES[d.getMonth()] + ' ' + d.getDate();
             } else {
-                el.textContent = mon.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' \u2013 ' + sun.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ', ' + mon.getFullYear() + ' (W' + wk + ')';
+                var mon = getMonday(currentDate);
+                var sun = new Date(mon.getTime() + 6*86400000);
+                var wk = getISOWeek(mon);
+                if (mon.getMonth() === sun.getMonth()) {
+                    el.textContent = MONTH_NAMES[mon.getMonth()] + ' ' + mon.getDate() + ' \u2013 ' + sun.getDate() + ', ' + mon.getFullYear() + ' (W' + wk + ')';
+                } else {
+                    el.textContent = mon.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' \u2013 ' + sun.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ', ' + mon.getFullYear() + ' (W' + wk + ')';
+                }
             }
         } else {
             el.textContent = MONTH_NAMES[currentDate.getMonth()] + ' ' + currentDate.getFullYear() + ' (W' + getISOWeek(currentDate) + ')';
@@ -387,6 +465,9 @@ function formatTime(timeStr) {
     }
 
     function renderWeekHeaders() {
+        var headerRow = document.querySelector('.week-header-row');
+        if (headerRow) headerRow.style.display = isMobile() ? 'none' : '';
+        if (isMobile()) return;
         var mon = getMonday(currentDate);
         for (var i = 0; i < 7; i++) {
             var d = new Date(mon.getTime() + i*86400000);
@@ -399,6 +480,10 @@ function formatTime(timeStr) {
     }
 
     function renderWeekView() {
+        if (isMobile()) {
+            renderMobileDayView();
+            return;
+        }
         renderWeekHeaders();
         var grid = document.getElementById('weekGrid');
         var mon = getMonday(currentDate);
@@ -437,6 +522,12 @@ function formatTime(timeStr) {
         if (multiDayEvents.length > 0) {
             html += '<div class="min-h-[28px] text-xs text-zinc-500 text-right pr-2 pt-1">All day</div>';
         }
+        var hasAnyAllday = Object.values(singleDayByDate).some(function(evts) { return evts.some(function(e) { return e.all_day; }); });
+        if (hasAnyAllday && multiDayEvents.length === 0) {
+            html += '<div class="min-h-[24px] text-xs text-zinc-500 text-right pr-2 pt-1">All day</div>';
+        } else if (hasAnyAllday) {
+            html += '<div class="min-h-[24px]"></div>';
+        }
         for (var h = START_HOUR; h < END_HOUR; h++) {
             html += '<div class="h-[' + SLOT_HEIGHT + 'px] text-xs text-zinc-500 text-right pr-2 pt-1">' +
                 (h < 10 ? '0' : '') + h + ':00</div>';
@@ -448,7 +539,7 @@ function formatTime(timeStr) {
             var dateStr = weekDates[col];
             var todayClass = isToday(d) ? ' bg-zinc-900/50' : '';
 
-            html += '<div class="border-r border-zinc-800 relative' + todayClass + '" data-drop-date="' + dateStr + '">';
+html += '<div class="border-r border-zinc-800' + todayClass + '" data-drop-date="' + dateStr + '">';
 
             if (multiDayEvents.length > 0) {
                 html += '<div class="border-b border-zinc-800/50 px-1 py-1 min-h-[28px]">';
@@ -494,6 +585,8 @@ function formatTime(timeStr) {
                 html += '</div>';
             }
 
+            html += '<div class="relative" data-drop-date="' + dateStr + '">';
+
             for (var h2 = START_HOUR; h2 < END_HOUR; h2++) {
                 var isNowLine = isToday(d) && now.getHours() === h2;
                 html += '<div class="h-[' + SLOT_HEIGHT + 'px] border-t border-zinc-800/50 time-slot relative cursor-pointer" data-date="' + dateStr + '" data-hour="' + h2 + '" onclick="window._addAtSlot(this)">';
@@ -514,15 +607,12 @@ function formatTime(timeStr) {
 
                 var topOffset = Math.max(0, (startH - START_HOUR) * SLOT_HEIGHT + (startM/60) * SLOT_HEIGHT);
                 var height = Math.max(SLOT_HEIGHT/2, ((endH - startH) * SLOT_HEIGHT + ((endM - startM)/60) * SLOT_HEIGHT));
-                var bottomBound = (END_HOUR - START_HOUR) * SLOT_HEIGHT;
-                var clampedTop = Math.min(topOffset, bottomBound - 20);
-                var clampedHeight = Math.min(height, bottomBound - clampedTop);
                 var timeLabel = (evt.start_time ? formatTime(evt.start_time) : '') + (evt.end_time ? ' \u2013 ' + formatTime(evt.end_time) : '');
                 var completedClass = evt.completed ? ' completed-event' : '';
                 var recurrenceBadge = evt.recurrence && evt.recurrence !== 'none' ? recurrenceLabel(evt) : '';
 
                 html += '<div class="cal-event absolute left-1 right-1 rounded-lg px-2 py-1 text-xs overflow-hidden z-20 cursor-pointer' + completedClass + '" ' +
-                    'style="top:' + clampedTop + 'px;height:' + clampedHeight + 'px;background:' + color.bg + ';border-left:3px solid ' + color.border + ';" ' +
+                    'style="top:' + topOffset + 'px;height:' + height + 'px;background:' + color.bg + ';border-left:3px solid ' + color.border + ';" ' +
                     'draggable="true" data-event-id="' + evt.id + '" ' +
                     'onclick="window._editEvent(\'' + evt.id + '\')" title="' + escHtml(evt.title) + '">' +
                     '<div class="font-medium truncate evt-title" style="color:' + color.text + '">' + TYPE_ICONS[evt.type] + ' ' + escHtml(evt.title) + recurrenceBadge + (evt.completed ? ' ✓' : '') + '</div>' +
@@ -530,6 +620,7 @@ function formatTime(timeStr) {
                     '</div>';
             });
 
+            html += '</div>';
             html += '</div>';
         }
 
@@ -546,6 +637,98 @@ function formatTime(timeStr) {
         }
     }
 
+    function renderMobileDayView() {
+        var grid = document.getElementById('weekGrid');
+        var dateStr = formatDate(currentDate);
+        var d = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+        var now = new Date();
+        var dayLabel = DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1] + ' ' + MONTH_NAMES[d.getMonth()] + ' ' + d.getDate();
+
+        var allEvents = getFilteredEvents().filter(function(e) { return e.date === dateStr; });
+        var multiDayEvents = allEvents.filter(function(e) { return isMultiDayEvent(e); });
+        var dayEvents = allEvents.filter(function(e) { return !isMultiDayEvent(e); });
+        var alldayEvents = dayEvents.filter(function(e) { return e.all_day; });
+        var timedEvents = dayEvents.filter(function(e) { return !e.all_day && !isMultiDayEvent(e); });
+
+        var SH = MOBILE_SLOT_HEIGHT;
+        var html = '';
+
+        html += '<div class="flex items-center justify-between px-3 py-2 bg-zinc-900 border-b border-zinc-800">';
+        html += '<button onclick="navPrev()" class="p-1.5 hover:bg-zinc-800 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>';
+        html += '<span class="text-sm font-medium">' + dayLabel + '</span>';
+        html += '<button onclick="navNext()" class="p-1.5 hover:bg-zinc-800 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>';
+        html += '</div>';
+
+        html += '<div class="flex flex-1 overflow-hidden">';
+        html += '<div class="border-r border-zinc-800 shrink-0" style="width:40px">';
+        for (var h = START_HOUR; h < END_HOUR; h++) {
+            html += '<div class="text-xs text-zinc-500 text-right pr-1" style="height:' + SH + 'px;line-height:' + SH + 'px">' + (h < 10 ? '0' : '') + h + '</div>';
+        }
+        html += '</div>';
+
+        html += '<div class="flex-1 relative" data-drop-date="' + dateStr + '">';
+        for (var h2 = START_HOUR; h2 < END_HOUR; h2++) {
+            var isNowLine = isToday(d) && now.getHours() === h2;
+            html += '<div class="border-t border-zinc-800/50 time-slot relative cursor-pointer" style="height:' + SH + 'px" data-date="' + dateStr + '" data-hour="' + h2 + '" onclick="window._addAtSlot(this)">';
+            if (isNowLine) {
+                var mins = now.getMinutes();
+                html += '<div class="absolute left-0 right-0 z-10" style="top:' + (mins/60*SH) + 'px"><div class="h-px bg-red-500 w-full"></div><div class="w-2 h-2 rounded-full bg-red-500 absolute -left-1 -top-1"></div></div>';
+            }
+            html += '</div>';
+        }
+
+        timedEvents.forEach(function(evt) {
+            var color = COLOR_MAP[evt.color || TYPE_COLORS[evt.type]] || COLOR_MAP.violet;
+            var startH = evt.start_time ? parseInt(evt.start_time.split(':')[0]) : 0;
+            var startM = evt.start_time ? parseInt(evt.start_time.split(':')[1]) : 0;
+            var endH = evt.end_time ? parseInt(evt.end_time.split(':')[0]) : startH + 1;
+            var endM = evt.end_time ? parseInt(evt.end_time.split(':')[1]) : 0;
+            var topOffset = Math.max(0, (startH - START_HOUR) * SH + (startM/60) * SH);
+            var height = Math.max(SH/2, ((endH - startH) * SH + ((endM - startM)/60) * SH));
+            var timeLabel = (evt.start_time ? formatTime(evt.start_time) : '') + (evt.end_time ? ' \u2013 ' + formatTime(evt.end_time) : '');
+            var completedClass = evt.completed ? ' completed-event' : '';
+            html += '<div class="cal-event absolute left-1 right-1 rounded-lg px-2 py-1 text-xs overflow-hidden z-20 cursor-pointer' + completedClass + '" ' +
+                'style="top:' + topOffset + 'px;height:' + height + 'px;background:' + color.bg + ';border-left:3px solid ' + color.border + ';" ' +
+                'draggable="true" data-event-id="' + evt.id + '" ' +
+                'onclick="window._editEvent(\'' + evt.id + '\')">' +
+                '<div class="font-medium truncate evt-title" style="color:' + color.text + '">' + TYPE_ICONS[evt.type] + ' ' + escHtml(evt.title) + (evt.completed ? ' ✓' : '') + '</div>' +
+                (timeLabel ? '<div class="text-zinc-400 truncate">' + timeLabel + '</div>' : '') +
+                '</div>';
+        });
+
+        html += '</div></div>';
+
+        var listEvents = multiDayEvents.concat(alldayEvents);
+        if (listEvents.length > 0) {
+            html += '<div class="border-t border-zinc-800 px-3 py-2 space-y-1">';
+            listEvents.forEach(function(evt) {
+                var color = COLOR_MAP[evt.color || TYPE_COLORS[evt.type]] || COLOR_MAP.violet;
+                var completedClass = evt.completed ? ' completed-event' : '';
+                var timeLabel = evt.all_day ? 'All day' : (evt.start_time ? formatTime(evt.start_time) : '') + (evt.end_time ? ' \u2013 ' + formatTime(evt.end_time) : '');
+                html += '<div class="cal-event text-sm px-3 py-2 rounded-lg cursor-pointer' + completedClass + '" ' +
+                    'style="background:' + color.bg + ';color:' + color.text + ';border-left:3px solid ' + color.border + ';" ' +
+                    'draggable="true" data-event-id="' + evt.id + '" ' +
+                    'onclick="window._editEvent(\'' + evt.id + '\')">' +
+                    TYPE_ICONS[evt.type] + ' <span class="evt-title">' + escHtml(evt.title) + '</span>' +
+                    (timeLabel ? ' <span class="text-zinc-400 text-xs">' + timeLabel + '</span>' : '') +
+                    (evt.completed ? ' ✓' : '') +
+                    '</div>';
+            });
+            html += '</div>';
+        }
+
+        grid.innerHTML = html;
+        grid.className = 'flex-1 overflow-y-auto scrollbar-thin';
+        setupDragDrop();
+
+        var nowHour = now.getHours();
+        if (isToday(d) && nowHour >= START_HOUR && nowHour <= END_HOUR) {
+            grid.scrollTop = Math.max(0, (nowHour - START_HOUR - 1) * SH);
+        } else {
+            grid.scrollTop = (8 - START_HOUR) * SH;
+        }
+    }
+
     function renderMonthView() {
         var container = document.getElementById('monthView');
         var year = currentDate.getFullYear();
@@ -555,21 +738,24 @@ function formatTime(timeStr) {
         var startDow = (firstDay.getDay() + 6) % 7;
         var daysInMonth = lastDay.getDate();
         var prevMonthLast = new Date(year, month, 0).getDate();
+        var mobile = isMobile();
 
-        var html = '<div class="grid grid-cols-7 border-b border-zinc-800 bg-zinc-900"></div>';
-        var wkInfo = getISOWeek(currentDate);
-
-        var headerHtml = '<div class="py-2 text-center text-xs text-zinc-500 font-medium px-0.5">Wk</div>';
-        DAY_NAMES.forEach(function(d) {
+        var dayLabels = mobile ? DAY_NAMES_SHORT : DAY_NAMES;
+        var cols = mobile ? 7 : 8;
+        var headerHtml = '';
+        if (!mobile) {
+            headerHtml += '<div class="py-2 text-center text-xs text-zinc-500 font-medium px-0.5">Wk</div>';
+        }
+        (mobile ? DAY_NAMES_SHORT : DAY_NAMES).forEach(function(d) {
             headerHtml += '<div class="py-2 text-center text-xs text-zinc-500 font-medium">' + d + '</div>';
         });
-        html = '<div class="grid grid-cols-8 border-b border-zinc-800 bg-zinc-900">' + headerHtml + '</div>';
+        var html = '<div class="grid grid-cols-' + cols + ' border-b border-zinc-800 bg-zinc-900">' + headerHtml + '</div>';
 
         var totalCells = Math.ceil((startDow + daysInMonth) / 7) * 7;
         var cellIdx = 0;
-        html += '<div class="grid grid-cols-8">';
+        html += '<div class="grid grid-cols-' + cols + '">';
         for (var i = 0; i < totalCells; i++) {
-            if (i % 7 === 0) {
+            if (!mobile && i % 7 === 0) {
                 var weekDate = i < startDow ? new Date(year, month - 1, prevMonthLast - startDow + i + 1) : new Date(year, month, i - startDow + 1);
                 html += '<div class="p-1 text-xs text-zinc-600 text-center border-t border-r border-zinc-800/50">' + getISOWeek(weekDate) + '</div>';
             }
@@ -593,11 +779,12 @@ function formatTime(timeStr) {
             var dayEvents = getEventsForDate(dateStr2);
             var todayClass2 = isCurrentMonth && isToday(new Date(dateStr2)) ? ' is-today' : '';
             var opacityClass = isCurrentMonth ? '' : ' opacity-40';
-            var minH2 = dayEvents.length > 2 ? 'min-h-[120px]' : 'min-h-[90px]';
+            var maxShow = mobile ? 2 : 3;
+            var minH2 = dayEvents.length > maxShow ? (mobile ? 'min-h-[60px]' : 'min-h-[120px]') : (mobile ? 'min-h-[50px]' : 'min-h-[90px]');
 
-            html += '<div class="border-t border-r border-zinc-800 p-1.5 month-day cursor-pointer' + todayClass2 + opacityClass + '" onclick="window._addAtDate(\'' + dateStr2 + '\')" data-drop-date="' + dateStr2 + '">';
-            html += '<div class="text-sm font-medium mb-1">' + dayNum + '</div>';
-            dayEvents.slice(0, 3).forEach(function(evt) {
+            html += '<div class="border-t border-r border-zinc-800 ' + (mobile ? 'p-0.5' : 'p-1.5') + ' month-day cursor-pointer' + todayClass2 + opacityClass + '" onclick="window._addAtDate(\'' + dateStr2 + '\')" data-drop-date="' + dateStr2 + '">';
+            html += '<div class="' + (mobile ? 'text-xs' : 'text-sm') + ' font-medium mb-0.5">' + dayNum + '</div>';
+            dayEvents.slice(0, maxShow).forEach(function(evt) {
                 var color = COLOR_MAP[evt.color || TYPE_COLORS[evt.type]] || COLOR_MAP.violet;
                 var completedClass2 = evt.completed ? ' completed-event' : '';
                 var recurrence2 = evt.recurrence && evt.recurrence !== 'none' ? recurrenceLabel(evt) : '';
@@ -608,14 +795,14 @@ function formatTime(timeStr) {
                     else if (cont === 'end') evtLabel = '\u2190 ' + evtLabel;
                     else if (cont === 'middle') evtLabel = '\u2190 ' + evtLabel + ' \u2192';
                 }
-                html += '<div class="text-xs px-1.5 py-0.5 rounded truncate mb-0.5 cursor-pointer cal-event' + completedClass2 + '" ' +
+                html += '<div class="' + (mobile ? 'text-[9px] px-0.5 py-px' : 'text-xs px-1.5 py-0.5') + ' rounded truncate cursor-pointer cal-event' + completedClass2 + '" ' +
                     'style="background:' + color.bg + ';color:' + color.text + ';border-left:2px solid ' + color.border + ';" ' +
                     'draggable="true" data-event-id="' + evt.id + '" ' +
                     'onclick="event.stopPropagation();window._editEvent(\'' + evt.id + '\')">' +
-                    TYPE_ICONS[evt.type] + ' <span class="evt-title">' + evtLabel + '</span>' + recurrence2 + (evt.completed ? ' ✓' : '') + '</div>';
+                    '<span class="evt-title">' + evtLabel + '</span>' + (evt.completed ? ' ✓' : '') + '</div>';
             });
-            if (dayEvents.length > 3) {
-                html += '<div class="text-xs text-zinc-400">+' + (dayEvents.length - 3) + ' more</div>';
+            if (dayEvents.length > maxShow) {
+                html += '<div class="text-xs text-zinc-400">+' + (dayEvents.length - maxShow) + '</div>';
             }
             html += '</div>';
             cellIdx++;
@@ -771,6 +958,7 @@ function renderSidebarEvent(evt, isPast) {
         document.getElementById('eventType').value = 'task';
         document.getElementById('eventStart').value = hour !== undefined ? String(hour).padStart(2,'0') + ':00' : '09:00';
         document.getElementById('eventEnd').value = hour !== undefined ? String(Math.min(hour+1,23)).padStart(2,'0') + ':00' : '10:00';
+        syncHiddenToSelects();
         document.getElementById('eventDesc').value = '';
         document.getElementById('eventAllDay').checked = false;
         document.getElementById('timeFields').style.display = '';
@@ -800,6 +988,7 @@ function renderSidebarEvent(evt, isPast) {
         document.getElementById('eventType').value = evt.type;
         document.getElementById('eventStart').value = evt.start_time || '';
         document.getElementById('eventEnd').value = evt.end_time || '';
+        syncHiddenToSelects();
         document.getElementById('eventDesc').value = evt.description || '';
         document.getElementById('eventAllDay').checked = !!evt.all_day;
         toggleAllDayDisplay(!!evt.all_day);
@@ -1112,12 +1301,13 @@ function renderSidebarEvent(evt, isPast) {
 
     function setupNotifications() {
         if (!('Notification' in window) || window.isDemo) return;
-        if (Notification.permission === 'default') {
-            setTimeout(function() {
-                Notification.requestPermission();
-            }, 5000);
+        if (Notification.permission === 'granted') {
+            scheduleReminders();
+        } else if (Notification.permission === 'default') {
+            Notification.requestPermission().then(function(perm) {
+                if (perm === 'granted') scheduleReminders();
+            });
         }
-        scheduleReminders();
     }
 
     function scheduleReminders() {
@@ -1125,21 +1315,38 @@ function renderSidebarEvent(evt, isPast) {
         notificationTimers = [];
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
         var now = new Date();
-        var today = formatDate(now);
-        var todayEvents = events.filter(function(e) { return e.date === today && !e.all_day && e.start_time && !e.completed; });
-        todayEvents.forEach(function(evt) {
+        var REMINDER_MINUTES = 15;
+        var REMINDER_MS = REMINDER_MINUTES * 60 * 1000;
+        var LOOKAHEAD_MS = 7 * 24 * 60 * 60 * 1000;
+        var upcoming = events.filter(function(e) {
+            if (e.all_day || !e.start_time || e.completed) return false;
+            var h = parseInt(e.start_time.split(':')[0]);
+            var m = parseInt(e.start_time.split(':')[1]);
+            var parts = e.date.split('-');
+            var evtTime = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), h, m);
+            var diff = evtTime.getTime() - now.getTime();
+            return diff > 0 && diff < LOOKAHEAD_MS;
+        });
+        upcoming.forEach(function(evt) {
             var h = parseInt(evt.start_time.split(':')[0]);
             var m = parseInt(evt.start_time.split(':')[1]);
-            var evtTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
-            var diff = evtTime.getTime() - now.getTime();
-            if (diff > 0 && diff < 300000) {
+            var parts = evt.date.split('-');
+            var evtTime = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), h, m);
+            var reminderTime = evtTime.getTime() - REMINDER_MS;
+            var delay = reminderTime - now.getTime();
+            if (delay > 0) {
                 var timer = setTimeout(function() {
                     new Notification('Planner: ' + evt.title, {
-                        body: 'Starting at ' + formatTime(evt.start_time) + (evt.end_time ? ' - ' + formatTime(evt.end_time) : ''),
+                        body: 'Starting at ' + formatTime(evt.start_time) + (evt.end_time ? ' - ' + formatTime(evt.end_time) : '') + ' on ' + evt.date,
                         icon: 'favicon.svg'
                     });
-                }, diff - 300000 > 0 ? diff - 300000 : 0);
+                }, delay);
                 notificationTimers.push(timer);
+            } else {
+                new Notification('Planner: ' + evt.title, {
+                    body: 'Starting at ' + formatTime(evt.start_time) + (evt.end_time ? ' - ' + formatTime(evt.end_time) : '') + ' on ' + evt.date,
+                    icon: 'favicon.svg'
+                });
             }
         });
     }
@@ -1451,10 +1658,32 @@ function renderSidebarEvent(evt, isPast) {
     });
 
     async function init() {
+        initTimeSelects();
         await loadEvents();
         setView('week');
         setupNotifications();
         initSidebarResizer();
+        initMobileGestures();
+        window.addEventListener('resize', function() { renderAll(); });
+    }
+
+    function initMobileGestures() {
+        var grid = document.getElementById('weekGrid');
+        var touchStartX = 0;
+        var touchStartY = 0;
+        grid.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        grid.addEventListener('touchend', function(e) {
+            if (!isMobile() || currentView !== 'week') return;
+            var dx = e.changedTouches[0].clientX - touchStartX;
+            var dy = e.changedTouches[0].clientY - touchStartY;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                if (dx < 0) navNext();
+                else navPrev();
+            }
+        }, { passive: true });
     }
 
     init();
