@@ -404,24 +404,39 @@ if ($method === 'POST') {
                     $current['description'] = rtrim(str_replace(['\\n', '\\N', "\r\n", "\n", "\r"], ' ', $val));
                 } elseif ($propUpper === 'DTSTART') {
                     $isDateOnly = stripos($propPart, 'VALUE=DATE') !== false;
+                    $isUtc = substr($val, -1) === 'Z';
+                    $tzid = null;
+                    if (preg_match('/TZID=([^;:]+)/i', $propPart, $tzMatch)) {
+                        $tzid = $tzMatch[1];
+                    }
                     $val = rtrim($val, 'Z');
                     if ($isDateOnly) {
                         $current['date'] = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2);
                         $current['all_day'] = true;
                     } else {
-                        $current['date'] = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2);
-                        if (strlen($val) >= 13 && $val[8] === 'T') {
-                            $current['start_time'] = substr($val, 9, 2) . ':' . substr($val, 11, 2);
+                        if ($isUtc || $tzid) {
+                            $dtStr = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2) . ' ' . substr($val, 9, 2) . ':' . substr($val, 11, 2) . ':' . substr($val, 13, 2);
+                            $dt = new DateTime($dtStr, $isUtc ? new DateTimeZone('UTC') : new DateTimeZone($tzid));
+                            $dt->setTimezone(new DateTimeZone(date_default_timezone_get()));
+                            $current['date'] = $dt->format('Y-m-d');
+                            $current['start_time'] = $dt->format('H:i');
+                        } else {
+                            $current['date'] = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2);
+                            if (strlen($val) >= 13 && $val[8] === 'T') {
+                                $current['start_time'] = substr($val, 9, 2) . ':' . substr($val, 11, 2);
+                            }
                         }
                     }
                 } elseif ($propUpper === 'DTEND') {
                     $isDateOnly = stripos($propPart, 'VALUE=DATE') !== false;
+                    $isUtc = substr($val, -1) === 'Z';
+                    $tzid = null;
+                    if (preg_match('/TZID=([^;:]+)/i', $propPart, $tzMatch)) {
+                        $tzid = $tzMatch[1];
+                    }
                     $val = rtrim($val, 'Z');
                     if ($isDateOnly) {
                         $endDate = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2);
-                        if (strlen($val) >= 13 && $val[8] === 'T') {
-                            $current['end_time'] = substr($val, 9, 2) . ':' . substr($val, 11, 2);
-                        }
                         $startDate = $current['date'] ?? null;
                         if ($startDate) {
                             $inclEnd = (new DateTime($endDate))->modify('-1 day')->format('Y-m-d');
@@ -430,9 +445,17 @@ if ($method === 'POST') {
                             }
                         }
                     } else {
-                        $endDateStr = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2);
-                        if (strlen($val) >= 13 && $val[8] === 'T') {
-                            $current['end_time'] = substr($val, 9, 2) . ':' . substr($val, 11, 2);
+                        if ($isUtc || $tzid) {
+                            $dtStr = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2) . ' ' . substr($val, 9, 2) . ':' . substr($val, 11, 2) . ':' . (strlen($val) >= 15 ? substr($val, 13, 2) : '00');
+                            $dt = new DateTime($dtStr, $isUtc ? new DateTimeZone('UTC') : new DateTimeZone($tzid));
+                            $dt->setTimezone(new DateTimeZone(date_default_timezone_get()));
+                            $current['end_time'] = $dt->format('H:i');
+                            $endDateStr = $dt->format('Y-m-d');
+                        } else {
+                            $endDateStr = substr($val, 0, 4) . '-' . substr($val, 4, 2) . '-' . substr($val, 6, 2);
+                            if (strlen($val) >= 13 && $val[8] === 'T') {
+                                $current['end_time'] = substr($val, 9, 2) . ':' . substr($val, 11, 2);
+                            }
                         }
                         $startDate = $current['date'] ?? null;
                         if ($startDate && $endDateStr !== $startDate) {
