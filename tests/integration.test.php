@@ -170,9 +170,33 @@ $body = json_decode($res['body'], true);
 assert_eq($body['status'] ?? '', 'error', 'Unknown action returns error');
 assert_eq($body['message'] ?? '', 'Unknown action', 'Unknown action message');
 
-echo "\nTest 11: GET api.php without CSRF returns 403\n";
+echo "\nTest 11: GET api.php without CSRF succeeds (read-only, not CSRF-gated)\n";
 $res = get($base . 'api.php');
-assert_eq($res['http_code'], 403, 'GET without CSRF returns 403');
+assert_eq($res['http_code'], 200, 'GET without CSRF returns 200');
+
+echo "\nTest 12: GET export_ics without CSRF succeeds (real <a> navigation can't set headers)\n";
+$res = get($base . 'api.php?action=export_ics');
+assert_eq($res['http_code'], 200, 'export_ics without CSRF returns 200');
+assert_contains($res['body'] ?? '', 'BEGIN:VCALENDAR', 'export_ics returns ICS content');
+
+echo "\nTest 13: POST still requires CSRF even though GET does not\n";
+$res = post($base . 'api.php', ['action' => 'add', 'event' => ['title' => 'no csrf', 'date' => '2026-01-01', 'type' => 'event']], null);
+assert_eq($res['http_code'], 403, 'POST without CSRF still returns 403');
+
+echo "\nTest 14: import_ics_url blocks localhost (SSRF)\n";
+$res = post($base . 'api.php', ['action' => 'import_ics_url', 'url' => 'http://localhost/'], $csrf2);
+$body = json_decode($res['body'], true);
+assert_eq($body['status'] ?? '', 'error', 'localhost URL should be rejected');
+
+echo "\nTest 15: import_ics_url blocks loopback IP (SSRF)\n";
+$res = post($base . 'api.php', ['action' => 'import_ics_url', 'url' => 'http://127.0.0.1/'], $csrf2);
+$body = json_decode($res['body'], true);
+assert_eq($body['status'] ?? '', 'error', '127.0.0.1 URL should be rejected');
+
+echo "\nTest 16: import_ics_url blocks internal Docker-network hostname (SSRF)\n";
+$res = post($base . 'api.php', ['action' => 'import_ics_url', 'url' => 'http://gotify/'], $csrf2);
+$body = json_decode($res['body'], true);
+assert_eq($body['status'] ?? '', 'error', 'internal Docker hostname should be rejected');
 
 // ============================================================
 echo "\n=== Cleanup ===\n";

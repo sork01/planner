@@ -7,11 +7,13 @@ $user = requireAuth();
 
 header('Content-Type: application/json');
 
-$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-if (!ssoVerifyCsrf($csrfToken)) {
-    http_response_code(403);
-    echo json_encode(['status' => 'error', 'message' => 'CSRF validation failed']);
-    exit;
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!ssoVerifyCsrf($csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'CSRF validation failed']);
+        exit;
+    }
 }
 
 $username = preg_replace('/[^a-zA-Z0-9_-]/', '', $user['username']);
@@ -233,9 +235,46 @@ if ($method === 'POST') {
             exit;
         }
         $url = str_ireplace(['webcal://', 'webcals://'], ['https://', 'https://'], $url);
-        $ctx = stream_context_create(['http' => ['timeout' => 15, 'follow_location' => true, 'max_redirects' => 5], 'ssl' => ['verify_peer' => true]]);
-        $icsData = @file_get_contents($url, false, $ctx);
-        if ($icsData === false) {
+
+        // SSRF mitigation: resolve the hostname, reject anything resolving to a
+        // private/internal/reserved address (blocks probing the Docker network),
+        // then pin curl to that exact IP via CURLOPT_RESOLVE (blocks DNS rebinding).
+        // Redirects are not followed, since a redirect target would otherwise
+        // bypass the IP check entirely. See dybtracker2/public/proxy.php for the
+        // reference implementation of this pattern.
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        $host = parse_url($url, PHP_URL_HOST);
+        $port = parse_url($url, PHP_URL_PORT) ?: ($scheme === 'https' ? 443 : 80);
+        if (!$host || strtolower($host) === 'localhost') {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid URL']);
+            exit;
+        }
+        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : (gethostbynamel($host) ?: []);
+        if (empty($ips)) {
+            echo json_encode(['status' => 'error', 'message' => 'Could not resolve host']);
+            exit;
+        }
+        foreach ($ips as $ip) {
+            if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                echo json_encode(['status' => 'error', 'message' => 'Host resolves to a disallowed address']);
+                exit;
+            }
+        }
+        $resolveIp = $ips[0];
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_USERAGENT => 'Planner/1.0',
+            CURLOPT_RESOLVE => ["{$host}:{$port}:{$resolveIp}"],
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $icsData = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($icsData === false || $httpCode >= 400) {
             echo json_encode(['status' => 'error', 'message' => 'Could not fetch the URL. Check that it\'s accessible.']);
             exit;
         }
